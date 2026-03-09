@@ -17,8 +17,8 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   return (
     <div className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full text-zinc-300">
       <div className="p-6">
-        <h1 className="text-xl font-bold text-white tracking-tight">Thesis Dashboard</h1>
-        <p className="text-xs text-zinc-500 mt-1">Organizza la tua tesi</p>
+        <h1 className="text-xl font-bold text-white tracking-tight">Forza Virginia</h1>
+        <p className="text-xs text-zinc-500 mt-1">❤️</p>
       </div>
 
       <nav className="flex-1 px-4 space-y-1">
