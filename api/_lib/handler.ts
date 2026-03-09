@@ -26,14 +26,17 @@ export function createHandler(handlers: MethodHandlers) {
 }
 
 /**
- * Parse request body, handling both Web API Request (.json()) and
- * Vercel Node.js runtime (pre-parsed .body).
+ * Parse request body, handling both Vercel Node.js runtime (pre-parsed .body)
+ * and standard Web API Request (.json()).
  */
 export async function parseBody<T = unknown>(req: Request): Promise<T> {
-  if (typeof req.json === 'function') {
-    return req.json() as Promise<T>;
+  // Vercel Node.js runtime pre-parses the body — check this first
+  const raw = (req as unknown as { body: unknown }).body;
+  if (raw !== undefined && raw !== null) {
+    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as T;
   }
-  return (req as unknown as { body: T }).body;
+  // Standard Web API Request
+  return req.json() as Promise<T>;
 }
 
 /**
