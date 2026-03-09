@@ -168,7 +168,7 @@ export function Chat() {
     <div className="flex h-full bg-white">
       {/* Sidebar History */}
       <div className="w-64 border-r border-zinc-200 bg-zinc-50 hidden md:flex md:flex-col">
-        <div className="p-4 border-b border-zinc-200">
+        <div className="h-16 border-b border-zinc-200 flex items-center px-4">
           <button
             onClick={handleNewChat}
             className="w-full flex items-center justify-center gap-2 bg-white border border-zinc-200 hover:border-indigo-500 hover:text-indigo-600 text-zinc-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm"

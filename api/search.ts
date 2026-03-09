@@ -1,5 +1,5 @@
-import { searchChunks } from './_lib/search';
-import { createHandler, withErrorHandler } from './_lib/handler';
+import { searchChunks } from './_lib/search.js';
+import { createHandler, withErrorHandler } from './_lib/handler.js';
 
 export default createHandler({
   POST: (req) => withErrorHandler('search', async () => {

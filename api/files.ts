@@ -1,6 +1,6 @@
-import { supabase } from './_lib/supabase';
-import { chunkText } from './_lib/chunking';
-import { createHandler, withErrorHandler } from './_lib/handler';
+import { supabase } from './_lib/supabase.js';
+import { chunkText } from './_lib/chunking.js';
+import { createHandler, withErrorHandler } from './_lib/handler.js';
 
 export default createHandler({
   GET: () => withErrorHandler('list files', async () => {

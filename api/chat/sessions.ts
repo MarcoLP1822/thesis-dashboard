@@ -1,5 +1,5 @@
-import { supabase } from '../_lib/supabase';
-import { createHandler, withErrorHandler } from '../_lib/handler';
+import { supabase } from '../_lib/supabase.js';
+import { createHandler, withErrorHandler } from '../_lib/handler.js';
 
 export default createHandler({
   GET: () => withErrorHandler('list chat sessions', async () => {

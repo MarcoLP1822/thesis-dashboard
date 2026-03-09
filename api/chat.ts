@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { searchChunks, type SearchResult } from './_lib/search';
-import { createHandler, withErrorHandler } from './_lib/handler';
+import { searchChunks, type SearchResult } from './_lib/search.js';
+import { createHandler, withErrorHandler } from './_lib/handler.js';
 import type { MessageParam, ContentBlockParam, TextBlock } from '@anthropic-ai/sdk/resources/messages/messages';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });

@@ -1,5 +1,5 @@
-import { supabase } from '../_lib/supabase';
-import { createHandler, withErrorHandler, extractId } from '../_lib/handler';
+import { supabase } from '../_lib/supabase.js';
+import { createHandler, withErrorHandler, extractId } from '../_lib/handler.js';
 
 export default createHandler({
   DELETE: (req) => withErrorHandler('delete file', async () => {
