@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /c/Users/Youcanprint1/Desktop/AI/thesis-dashboard/.env*)",
+      "WebSearch",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:supabase.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:tone-row.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(npx tsc --noEmit --pretty)",
+      "Bash(npm install)",
+      "Bash(npx tsc --noEmit api/_lib/supabase.ts api/_lib/embeddings.ts api/_lib/chunking.ts api/_lib/search.ts)",
+      "Bash(npx tsc --noEmit --project tsconfig.json)",
+      "Bash(npx tsc --noEmit api/files.ts api/files/[id].ts)",
+      "Bash(npx tsc --noEmit api/chat/sessions.ts api/chat/sessions/[id].ts api/citations.ts api/citations/[id].ts api/clear.ts)",
+      "Bash(npx tsc --noEmit api/search.ts api/chat.ts)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vite build)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Youcanprint1\\Desktop\\AI\\thesis-dashboard\\docs\\tasks\\supabase-file-management"
+    ]
+  }
+}

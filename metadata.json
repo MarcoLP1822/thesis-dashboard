@@ -1,0 +1,5 @@
+{
+  "name": "Thesis Dashboard",
+  "description": "A dashboard to organize thesis work, manage a library of documents, and chat with them using Gemini.",
+  "requestFramePermissions": []
+}
