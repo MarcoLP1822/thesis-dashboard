@@ -1,15 +1,9 @@
 import { supabase } from './_lib/supabase';
+import { createHandler, withErrorHandler } from './_lib/handler';
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') {
-    return Response.json(
-      { error: `Method ${req.method} not allowed` },
-      { status: 405 }
-    );
-  }
-
-  try {
-    // Delete tables in FK-safe order: chunks → files → chat_sessions → citations
+export default createHandler({
+  POST: () => withErrorHandler('clear all data', async () => {
+    // Delete tables in FK-safe order: chunks -> files -> chat_sessions -> citations
     const { error: chunksError } = await supabase
       .from('chunks')
       .delete()
@@ -51,11 +45,5 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     return Response.json({ success: true });
-  } catch (err) {
-    console.error('Error clearing all data:', err);
-    return Response.json(
-      { error: 'Failed to clear data' },
-      { status: 500 }
-    );
-  }
-}
+  }),
+});

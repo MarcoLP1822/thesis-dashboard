@@ -1,35 +1,14 @@
 import { supabase } from '../_lib/supabase';
+import { createHandler, withErrorHandler, extractId } from '../_lib/handler';
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'DELETE') {
-    return Response.json(
-      { error: `Method ${req.method} not allowed` },
-      { status: 405 }
-    );
-  }
-
-  try {
-    const url = new URL(req.url);
-    const citationId = url.pathname.split('/').pop();
-
-    if (!citationId) {
-      return Response.json(
-        { error: 'Missing citation ID' },
-        { status: 400 }
-      );
+export default createHandler({
+  DELETE: (req) => withErrorHandler('delete citation', async () => {
+    const id = extractId(req);
+    if (!id) {
+      return Response.json({ error: 'Missing citation ID' }, { status: 400 });
     }
 
-    await supabase
-      .from('citations')
-      .delete()
-      .eq('id', citationId);
-
+    await supabase.from('citations').delete().eq('id', id);
     return Response.json({ success: true });
-  } catch (err) {
-    console.error('Error deleting citation:', err);
-    return Response.json(
-      { error: 'Failed to delete citation' },
-      { status: 500 }
-    );
-  }
-}
+  }),
+});

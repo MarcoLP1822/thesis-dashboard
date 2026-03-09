@@ -1,5 +1,4 @@
 // Data layer: all CRUD operations via API routes
-// Same function signatures as before — internals changed from IndexedDB to fetch()
 
 export interface ThesisFile {
   id: string;
@@ -32,132 +31,117 @@ export interface ChatSession {
   updatedAt: number;
 }
 
-// --- Files ---
+// --- Shared fetch helpers ---
 
-export async function saveFile(file: ThesisFile): Promise<void> {
-  const res = await fetch('/api/files', {
+async function apiGet<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to fetch ${url}`);
+  }
+  return res.json();
+}
+
+async function apiPost(url: string, body: Record<string, unknown>): Promise<void> {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: file.id,
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      content: file.content,
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to save file');
+    throw new Error(err.error || `Failed to post to ${url}`);
   }
 }
 
+async function apiDelete(url: string): Promise<void> {
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to delete ${url}`);
+  }
+}
+
+// --- Files ---
+
+export async function saveFile(file: ThesisFile): Promise<void> {
+  await apiPost('/api/files', {
+    id: file.id,
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    content: file.content,
+  });
+}
+
 export async function getFiles(): Promise<ThesisFile[]> {
-  const res = await fetch('/api/files');
-  if (!res.ok) throw new Error('Failed to fetch files');
-  const data = await res.json();
-  return data.map((f: any) => ({
-    id: f.id,
-    name: f.name,
-    type: f.type,
-    size: f.size,
-    uploadedAt: new Date(f.uploaded_at).getTime(),
-    storagePath: f.storage_path,
+  const data = await apiGet<Record<string, unknown>[]>('/api/files');
+  return data.map((f) => ({
+    id: f.id as string,
+    name: f.name as string,
+    type: f.type as string,
+    size: f.size as number,
+    uploadedAt: new Date(f.uploaded_at as string).getTime(),
+    storagePath: f.storage_path as string | undefined,
   }));
 }
 
 export async function deleteFile(id: string): Promise<void> {
-  const res = await fetch(`/api/files/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to delete file');
-  }
+  await apiDelete(`/api/files/${id}`);
 }
 
 // --- Citations ---
 
 export async function saveCitation(citation: Citation): Promise<void> {
-  const res = await fetch('/api/citations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: citation.id,
-      text: citation.text,
-      source: citation.source,
-      category: citation.category,
-    }),
+  await apiPost('/api/citations', {
+    id: citation.id,
+    text: citation.text,
+    source: citation.source,
+    category: citation.category,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to save citation');
-  }
 }
 
 export async function getCitations(): Promise<Citation[]> {
-  const res = await fetch('/api/citations');
-  if (!res.ok) throw new Error('Failed to fetch citations');
-  const data = await res.json();
-  return data.map((c: any) => ({
-    id: c.id,
-    text: c.text,
-    source: c.source,
-    category: c.category,
-    createdAt: new Date(c.created_at).getTime(),
+  const data = await apiGet<Record<string, unknown>[]>('/api/citations');
+  return data.map((c) => ({
+    id: c.id as string,
+    text: c.text as string,
+    source: c.source as string,
+    category: c.category as string,
+    createdAt: new Date(c.created_at as string).getTime(),
   }));
 }
 
 export async function deleteCitation(id: string): Promise<void> {
-  const res = await fetch(`/api/citations/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to delete citation');
-  }
+  await apiDelete(`/api/citations/${id}`);
 }
 
 // --- Chats ---
 
 export async function saveChatSession(session: ChatSession): Promise<void> {
-  const res = await fetch('/api/chat/sessions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: session.id,
-      title: session.title,
-      messages: session.messages,
-    }),
+  await apiPost('/api/chat/sessions', {
+    id: session.id,
+    title: session.title,
+    messages: session.messages,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to save chat session');
-  }
 }
 
 export async function getChatSessions(): Promise<ChatSession[]> {
-  const res = await fetch('/api/chat/sessions');
-  if (!res.ok) throw new Error('Failed to fetch chat sessions');
-  const data = await res.json();
-  return data.map((s: any) => ({
-    id: s.id,
-    title: s.title,
-    messages: s.messages,
-    updatedAt: new Date(s.updated_at).getTime(),
+  const data = await apiGet<Record<string, unknown>[]>('/api/chat/sessions');
+  return data.map((s) => ({
+    id: s.id as string,
+    title: s.title as string,
+    messages: s.messages as ChatMessage[],
+    updatedAt: new Date(s.updated_at as string).getTime(),
   }));
 }
 
 export async function deleteChatSession(id: string): Promise<void> {
-  const res = await fetch(`/api/chat/sessions/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to delete chat session');
-  }
+  await apiDelete(`/api/chat/sessions/${id}`);
 }
 
 // --- Utility ---
 
 export async function clearAll(): Promise<void> {
-  const res = await fetch('/api/clear', { method: 'POST' });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to clear all data');
-  }
+  await apiPost('/api/clear', {});
 }

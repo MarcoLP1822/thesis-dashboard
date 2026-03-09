@@ -1,11 +1,8 @@
 import { searchChunks } from './_lib/search';
+import { createHandler, withErrorHandler } from './_lib/handler';
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') {
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
-  }
-
-  try {
+export default createHandler({
+  POST: (req) => withErrorHandler('search', async () => {
     const { query, limit = 5 } = await req.json();
 
     if (!query || typeof query !== 'string') {
@@ -14,11 +11,5 @@ export default async function handler(req: Request): Promise<Response> {
 
     const results = await searchChunks(query, limit);
     return Response.json(results);
-  } catch (error) {
-    console.error('Search error:', error);
-    return Response.json(
-      { error: 'Search failed' },
-      { status: 500 },
-    );
-  }
-}
+  }),
+});

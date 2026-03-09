@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { searchChunks, type SearchResult } from './_lib/search';
+import { createHandler, withErrorHandler } from './_lib/handler';
 import type { MessageParam, ContentBlockParam, TextBlock } from '@anthropic-ai/sdk/resources/messages/messages';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -31,7 +32,6 @@ function buildDocumentBlocks(chunks: SearchResult[]): ContentBlockParam[] {
 
 function mapHistory(history: HistoryEntry[]): MessageParam[] {
   return history.map((m) => ({
-    // Frontend uses 'model' (Gemini convention) -- map to 'assistant' for Anthropic
     role: (m.role === 'model' ? 'assistant' : m.role) as 'user' | 'assistant',
     content: m.text,
   }));
@@ -66,19 +66,15 @@ function extractCitations(response: Anthropic.Message, chunks: SearchResult[]): 
   return { text: fullText, citations };
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') {
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
-  }
-
-  try {
+export default createHandler({
+  POST: (req) => withErrorHandler('chat', async () => {
     const { message, sessionId, history = [] } = await req.json();
 
     if (!message || typeof message !== 'string') {
       return Response.json({ error: 'Missing or invalid message' }, { status: 400 });
     }
 
-    // RAG: retrieve relevant chunks (direct function call, no HTTP hop)
+    // RAG: retrieve relevant chunks
     let searchResults: SearchResult[] = [];
     try {
       searchResults = await searchChunks(message, 10);
@@ -100,7 +96,6 @@ export default async function handler(req: Request): Promise<Response> {
         : `${message}\n\n(Nota: non ho trovato documenti rilevanti nella libreria. Rispondi in base alle tue conoscenze generali e avvisa che non ci sono riscontri nei documenti caricati.)`,
     });
 
-    // Build messages: history + current user message with documents
     const messages: MessageParam[] = [
       ...mapHistory(history),
       { role: 'user' as const, content: userContent },
@@ -119,11 +114,5 @@ export default async function handler(req: Request): Promise<Response> {
       text: text || 'Nessuna risposta generata.',
       citations,
     });
-  } catch (error) {
-    console.error('Chat error:', error);
-    return Response.json(
-      { error: 'Chat request failed' },
-      { status: 500 },
-    );
-  }
-}
+  }),
+});

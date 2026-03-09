@@ -1,39 +1,18 @@
 import { supabase } from '../_lib/supabase';
+import { createHandler, withErrorHandler } from '../_lib/handler';
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'GET') {
-    return handleGet();
-  }
-  if (req.method === 'POST') {
-    return handlePost(req);
-  }
-  return Response.json(
-    { error: `Method ${req.method} not allowed` },
-    { status: 405 }
-  );
-}
-
-async function handleGet(): Promise<Response> {
-  try {
+export default createHandler({
+  GET: () => withErrorHandler('list chat sessions', async () => {
     const { data, error } = await supabase
       .from('chat_sessions')
       .select('id, title, messages, updated_at')
       .order('updated_at', { ascending: false });
 
     if (error) throw error;
-
     return Response.json(data ?? []);
-  } catch (err) {
-    console.error('Error listing chat sessions:', err);
-    return Response.json(
-      { error: 'Failed to list chat sessions' },
-      { status: 500 }
-    );
-  }
-}
+  }),
 
-async function handlePost(req: Request): Promise<Response> {
-  try {
+  POST: (req) => withErrorHandler('save chat session', async () => {
     const body = await req.json();
     const { id, title, messages } = body;
 
@@ -54,13 +33,6 @@ async function handlePost(req: Request): Promise<Response> {
       .single();
 
     if (error) throw error;
-
     return Response.json(data);
-  } catch (err) {
-    console.error('Error saving chat session:', err);
-    return Response.json(
-      { error: 'Failed to save chat session' },
-      { status: 500 }
-    );
-  }
-}
+  }),
+});
