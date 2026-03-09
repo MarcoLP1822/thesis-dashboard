@@ -45,7 +45,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
 
       <div className="p-4 border-t border-zinc-800">
         <div className="text-xs text-zinc-500 text-center">
-          Powered by Claude
+          Ciao I love pizza/pittule
         </div>
       </div>
     </div>
