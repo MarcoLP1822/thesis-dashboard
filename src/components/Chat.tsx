@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Bot, User, Trash2, Plus, MessageSquare, Quote, Save } from 'lucide-react';
+import { Send, Loader2, Bot, User, Trash2, Plus, MessageSquare, Save } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { saveChatSession, getChatSessions, deleteChatSession, ChatSession, ChatMessage, saveCitation } from '../lib/db';
 import { cn } from '../lib/utils';
@@ -9,6 +9,7 @@ export function Chat() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export function Chat() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingText]);
 
   const handleNewChat = () => {
     setCurrentSessionId(null);
@@ -86,7 +87,6 @@ export function Chat() {
         body: JSON.stringify({
           message: input,
           sessionId: sessionToUpdate.id,
-          // Exclude the current userMessage — it's sent as `message` already
           history: sessionToUpdate.messages.slice(0, -1).map(m => ({
             role: m.role,
             text: m.text,
@@ -95,12 +95,37 @@ export function Chat() {
       });
 
       if (!chatRes.ok) throw new Error('Chat request failed');
-      const { text } = await chatRes.json();
+
+      const reader = chatRes.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'delta') {
+              fullText += data.text;
+              setStreamingText(fullText);
+            }
+          } catch { /* ignore malformed chunks */ }
+        }
+      }
 
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        text: text || 'Nessuna risposta generata.',
+        text: fullText || 'Nessuna risposta generata.',
       };
 
       const finalSession = {
@@ -109,8 +134,18 @@ export function Chat() {
         updatedAt: Date.now(),
       };
 
+      setSessions(prev => {
+        const idx = prev.findIndex(s => s.id === finalSession.id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = finalSession;
+          return updated.sort((a, b) => b.updatedAt - a.updatedAt);
+        }
+        return [finalSession, ...prev];
+      });
+      setStreamingText('');
+
       await saveChatSession(finalSession);
-      await loadSessions();
       
     } catch (error) {
       console.error('Error generating response:', error);
@@ -284,9 +319,17 @@ export function Chat() {
                   <div className="w-10 h-10 rounded-full bg-white border border-zinc-200 text-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
                     <Bot className="w-5 h-5" />
                   </div>
-                  <div className="bg-white border border-zinc-200 rounded-2xl rounded-tl-sm p-5 shadow-sm flex items-center gap-3 text-zinc-500">
-                    <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
-                    <span className="text-sm font-medium animate-pulse">Analisi dei documenti in corso...</span>
+                  <div className="bg-white border border-zinc-200 rounded-2xl rounded-tl-sm p-5 shadow-sm max-w-[80%]">
+                    {streamingText ? (
+                      <div className="prose prose-sm max-w-none prose-zinc prose-p:leading-relaxed prose-pre:bg-zinc-900 prose-pre:text-zinc-100">
+                        <ReactMarkdown>{streamingText}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 text-zinc-500">
+                        <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                        <span className="text-sm font-medium animate-pulse">Analisi dei documenti in corso...</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

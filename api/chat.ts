@@ -37,15 +37,12 @@ function mapHistory(history: HistoryEntry[]): MessageParam[] {
   }));
 }
 
-function extractCitations(response: Anthropic.Message, chunks: SearchResult[]): { text: string; citations: Citation[] } {
-  let fullText = '';
+function extractCitations(response: Anthropic.Message, chunks: SearchResult[]): Citation[] {
   const citations: Citation[] = [];
 
   for (const block of response.content) {
     if (block.type === 'text') {
       const textBlock = block as TextBlock;
-      fullText += textBlock.text;
-
       if (textBlock.citations) {
         for (const citation of textBlock.citations) {
           const docTitle =
@@ -63,7 +60,7 @@ function extractCitations(response: Anthropic.Message, chunks: SearchResult[]): 
     }
   }
 
-  return { text: fullText, citations };
+  return citations;
 }
 
 export default createHandler({
@@ -101,18 +98,43 @@ export default createHandler({
       { role: 'user' as const, content: userContent },
     ];
 
-    const response = await client.messages.create({
+    const stream = client.messages.stream({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages,
     });
 
-    const { text, citations } = extractCitations(response, searchResults);
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        stream.on('text', (text) => {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`)
+          );
+        });
 
-    return Response.json({
-      text: text || 'Nessuna risposta generata.',
-      citations,
+        try {
+          const finalMessage = await stream.finalMessage();
+          const citations = extractCitations(finalMessage, searchResults);
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'done', citations })}\n\n`)
+          );
+        } catch (err) {
+          console.error('Stream error:', err);
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error' })}\n\n`)
+          );
+        }
+        controller.close();
+      },
+    });
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+      },
     });
   }),
 });
