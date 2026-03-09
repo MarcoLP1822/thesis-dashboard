@@ -1,17 +1,14 @@
 import { supabase } from './supabase';
-import { getEmbedding } from './embeddings';
 
 export type SearchResult = {
   content: string;
   source_file: string;
-  distance: number;
+  rank: number;
 };
 
 export async function searchChunks(query: string, limit: number = 5): Promise<SearchResult[]> {
-  const queryEmbedding = await getEmbedding(query);
-
-  const { data, error } = await supabase.rpc('match_chunks', {
-    query_embedding: JSON.stringify(queryEmbedding),
+  const { data, error } = await supabase.rpc('search_chunks_fts', {
+    query,
     match_count: limit,
   });
 

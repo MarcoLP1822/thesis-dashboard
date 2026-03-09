@@ -1,6 +1,5 @@
 import { supabase } from './_lib/supabase';
 import { chunkText } from './_lib/chunking';
-import { getEmbedding } from './_lib/embeddings';
 import { createHandler, withErrorHandler } from './_lib/handler';
 
 export default createHandler({
@@ -35,8 +34,6 @@ export default createHandler({
 
     for (let i = 0; i < chunks.length; i++) {
       const chunkId = `${id}_${i}`;
-      const embedding = await getEmbedding(chunks[i]);
-      const embeddingStr = `[${embedding.join(',')}]`;
 
       const { error: chunkError } = await supabase
         .from('chunks')
@@ -45,7 +42,6 @@ export default createHandler({
           file_id: id,
           content: chunks[i],
           chunk_index: i,
-          embedding: embeddingStr,
         });
 
       if (chunkError) throw chunkError;

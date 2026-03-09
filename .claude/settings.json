@@ -16,7 +16,9 @@
       "Bash(npx tsc --noEmit api/chat/sessions.ts api/chat/sessions/[id].ts api/citations.ts api/citations/[id].ts api/clear.ts)",
       "Bash(npx tsc --noEmit api/search.ts api/chat.ts)",
       "Bash(npx tsc --noEmit)",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(xargs ls -la)",
+      "Bash(npm uninstall @google/genai)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Youcanprint1\\Desktop\\AI\\thesis-dashboard\\docs\\tasks\\supabase-file-management"
