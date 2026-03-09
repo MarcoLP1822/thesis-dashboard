@@ -40,19 +40,27 @@ export async function parseBody<T = unknown>(req: Request): Promise<T> {
 }
 
 /**
- * Wrap an async operation with consistent error logging and 500 response.
+ * Wrap an async operation with consistent error logging, 500 response,
+ * and a safety timeout so Vercel functions never hang for 300 s.
  */
 export async function withErrorHandler(
   operation: string,
-  fn: () => Promise<Response>
+  fn: () => Promise<Response>,
+  timeoutMs = 25_000
 ): Promise<Response> {
   try {
-    return await fn();
+    return await Promise.race([
+      fn(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout: ${operation} exceeded ${timeoutMs}ms`)), timeoutMs)
+      ),
+    ]);
   } catch (err) {
     console.error(`Error ${operation}:`, err);
+    const status = err instanceof Error && err.message.startsWith('Timeout') ? 504 : 500;
     return Response.json(
       { error: `Failed to ${operation}` },
-      { status: 500 }
+      { status }
     );
   }
 }
