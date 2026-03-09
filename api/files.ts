@@ -1,6 +1,6 @@
 import { supabase } from './_lib/supabase.js';
 import { chunkText } from './_lib/chunking.js';
-import { createHandler, withErrorHandler } from './_lib/handler.js';
+import { createHandler, withErrorHandler, parseBody } from './_lib/handler.js';
 
 export default createHandler({
   GET: () => withErrorHandler('list files', async () => {
@@ -14,7 +14,7 @@ export default createHandler({
   }),
 
   POST: (req) => withErrorHandler('process file', async () => {
-    const body = await req.json();
+    const body = await parseBody<{ id: string; name: string; type: string; size: number; content: string }>(req);
     const { id, name, type, size, content } = body;
 
     if (!id || !name || !content) {

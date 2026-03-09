@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { searchChunks, type SearchResult } from './_lib/search.js';
-import { createHandler, withErrorHandler } from './_lib/handler.js';
+import { createHandler, withErrorHandler, parseBody } from './_lib/handler.js';
 import type { MessageParam, ContentBlockParam, TextBlock } from '@anthropic-ai/sdk/resources/messages/messages';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -68,7 +68,7 @@ function extractCitations(response: Anthropic.Message, chunks: SearchResult[]): 
 
 export default createHandler({
   POST: (req) => withErrorHandler('chat', async () => {
-    const { message, sessionId, history = [] } = await req.json();
+    const { message, sessionId, history = [] } = await parseBody<{ message: string; sessionId?: string; history?: HistoryEntry[] }>(req);
 
     if (!message || typeof message !== 'string') {
       return Response.json({ error: 'Missing or invalid message' }, { status: 400 });

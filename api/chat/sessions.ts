@@ -1,5 +1,5 @@
 import { supabase } from '../_lib/supabase.js';
-import { createHandler, withErrorHandler } from '../_lib/handler.js';
+import { createHandler, withErrorHandler, parseBody } from '../_lib/handler.js';
 
 export default createHandler({
   GET: () => withErrorHandler('list chat sessions', async () => {
@@ -13,7 +13,7 @@ export default createHandler({
   }),
 
   POST: (req) => withErrorHandler('save chat session', async () => {
-    const body = await req.json();
+    const body = await parseBody<{ id: string; title: string; messages: unknown[] }>(req);
     const { id, title, messages } = body;
 
     if (!id || !title || !messages) {

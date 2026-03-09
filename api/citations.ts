@@ -1,5 +1,5 @@
 import { supabase } from './_lib/supabase.js';
-import { createHandler, withErrorHandler } from './_lib/handler.js';
+import { createHandler, withErrorHandler, parseBody } from './_lib/handler.js';
 
 export default createHandler({
   GET: () => withErrorHandler('list citations', async () => {
@@ -13,7 +13,7 @@ export default createHandler({
   }),
 
   POST: (req) => withErrorHandler('save citation', async () => {
-    const body = await req.json();
+    const body = await parseBody<{ id: string; text: string; source: string; category: string }>(req);
     const { id, text, source, category } = body;
 
     if (!id || !text || !source || !category) {

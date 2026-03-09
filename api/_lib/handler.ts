@@ -26,6 +26,17 @@ export function createHandler(handlers: MethodHandlers) {
 }
 
 /**
+ * Parse request body, handling both Web API Request (.json()) and
+ * Vercel Node.js runtime (pre-parsed .body).
+ */
+export async function parseBody<T = unknown>(req: Request): Promise<T> {
+  if (typeof req.json === 'function') {
+    return req.json() as Promise<T>;
+  }
+  return (req as unknown as { body: T }).body;
+}
+
+/**
  * Wrap an async operation with consistent error logging and 500 response.
  */
 export async function withErrorHandler(
