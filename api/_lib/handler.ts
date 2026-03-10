@@ -1,4 +1,6 @@
-type MethodHandler = (req: Request) => Promise<Response>;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+type MethodHandler = (req: any) => Promise<Response>;
 
 type MethodHandlers = {
   GET?: MethodHandler;
@@ -9,34 +11,66 @@ type MethodHandlers = {
 };
 
 /**
- * Route a request to the correct method handler, returning 405 for unsupported methods.
+ * Route a request to the correct method handler.
+ * Bridges Web API Response → Vercel Node.js (req, res) format,
+ * because Vercel's runtime doesn't reliably handle `return Response`.
  */
 export function createHandler(handlers: MethodHandlers) {
-  return async (req: Request): Promise<Response> => {
+  return async (req: any, res: any) => {
     const method = req.method as keyof MethodHandlers;
     const handler = handlers[method];
     if (!handler) {
-      return Response.json(
-        { error: `Method ${req.method} not allowed` },
-        { status: 405 }
-      );
+      return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
-    return handler(req);
+
+    try {
+      const response: Response = await handler(req);
+
+      // Copy status + headers
+      res.status(response.status);
+      response.headers.forEach((value: string, key: string) => {
+        res.setHeader(key, value);
+      });
+
+      if (!response.body) {
+        return res.end();
+      }
+
+      // Pipe body — works for both JSON and SSE streaming
+      const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      } finally {
+        res.end();
+      }
+    } catch (err) {
+      console.error('Unhandled error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error' });
+      } else {
+        res.end();
+      }
+    }
   };
 }
 
 /**
- * Parse request body, handling both Vercel Node.js runtime (pre-parsed .body)
- * and standard Web API Request (.json()).
+ * Parse request body — Vercel Node.js runtime pre-parses req.body.
  */
-export async function parseBody<T = unknown>(req: Request): Promise<T> {
-  // Vercel Node.js runtime pre-parses the body — check this first
-  const raw = (req as unknown as { body: unknown }).body;
+export async function parseBody<T = unknown>(req: any): Promise<T> {
+  const raw = req.body;
   if (raw !== undefined && raw !== null) {
     return (typeof raw === 'string' ? JSON.parse(raw) : raw) as T;
   }
-  // Standard Web API Request
-  return req.json() as Promise<T>;
+  // Fallback for standard Web API Request
+  if (typeof req.json === 'function') {
+    return req.json() as Promise<T>;
+  }
+  throw new Error('Unable to parse request body');
 }
 
 /**
@@ -68,7 +102,7 @@ export async function withErrorHandler(
 /**
  * Extract the last path segment from a request URL (the dynamic [id] parameter).
  */
-export function extractId(req: Request): string | null {
-  const url = new URL(req.url);
-  return url.pathname.split('/').pop() || null;
+export function extractId(req: any): string | null {
+  const url: string = req.url || '';
+  return url.split('/').pop()?.split('?')[0] || null;
 }
