@@ -10,6 +10,7 @@ export function Chat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [sessionsReady, setSessionsReady] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export function Chat() {
     if (loaded.length > 0 && !currentSessionId) {
       setCurrentSessionId(loaded[0].id);
     }
+    setSessionsReady(true);
   };
 
   const currentSession = sessions.find(s => s.id === currentSessionId);
@@ -253,7 +255,11 @@ export function Chat() {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-zinc-50/50">
-          {messages.length === 0 ? (
+          {!sessionsReady ? (
+            <div className="h-full flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+            </div>
+          ) : messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
               <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-indigo-200">
                 <Bot className="w-8 h-8" />
