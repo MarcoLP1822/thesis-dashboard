@@ -1,17 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Bot, User, Trash2, Plus, MessageSquare, Save, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { saveChatSession, getChatSessions, deleteChatSession, ChatSession, ChatMessage, ChatSource, saveCitation } from '../lib/db';
+import { saveChatSession, getChatSessions, getChatSessionById, deleteChatSession, ChatSessionMeta, ChatMessage, ChatSource, saveCitation } from '../lib/db';
 import { cn } from '../lib/utils';
 
 export function Chat() {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessions, setSessions] = useState<ChatSessionMeta[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [sessionsReady, setSessionsReady] = useState(false);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesCache = useRef<Record<string, ChatMessage[]>>({});
+  const activeSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     loadSessions();
@@ -20,14 +24,40 @@ export function Chat() {
   const loadSessions = async () => {
     const loaded = await getChatSessions();
     setSessions(loaded);
-    if (loaded.length > 0 && !currentSessionId) {
-      setCurrentSessionId(loaded[0].id);
-    }
     setSessionsReady(true);
+    if (loaded.length > 0) {
+      selectSession(loaded[0].id);
+    }
   };
 
-  const currentSession = sessions.find(s => s.id === currentSessionId);
-  const messages = currentSession?.messages || [];
+  const selectSession = async (id: string) => {
+    setCurrentSessionId(id);
+    activeSessionRef.current = id;
+
+    if (messagesCache.current[id]) {
+      setMessages(messagesCache.current[id]);
+      return;
+    }
+
+    setMessages([]);
+    setMessagesLoading(true);
+    try {
+      const session = await getChatSessionById(id);
+      messagesCache.current[id] = session.messages;
+      if (activeSessionRef.current === id) {
+        setMessages(session.messages);
+      }
+    } catch (e) {
+      console.error('Failed to load session messages:', e);
+      if (activeSessionRef.current === id) {
+        setMessages([]);
+      }
+    } finally {
+      if (activeSessionRef.current === id) {
+        setMessagesLoading(false);
+      }
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,6 +69,8 @@ export function Chat() {
 
   const handleNewChat = () => {
     setCurrentSessionId(null);
+    activeSessionRef.current = null;
+    setMessages([]);
   };
 
   const handleSend = async () => {
@@ -50,34 +82,24 @@ export function Chat() {
       text: input,
     };
 
-    let sessionToUpdate = currentSession;
-    
-    if (!sessionToUpdate) {
-      sessionToUpdate = {
-        id: crypto.randomUUID(),
-        title: input.slice(0, 30) + (input.length > 30 ? '...' : ''),
-        messages: [userMessage],
+    let sessionId = currentSessionId;
+    let sessionTitle = sessions.find(s => s.id === sessionId)?.title;
+
+    if (!sessionId) {
+      sessionId = crypto.randomUUID();
+      sessionTitle = input.slice(0, 30) + (input.length > 30 ? '...' : '');
+      setCurrentSessionId(sessionId);
+      activeSessionRef.current = sessionId;
+      setSessions(prev => [{
+        id: sessionId!,
+        title: sessionTitle!,
         updatedAt: Date.now(),
-      };
-      setCurrentSessionId(sessionToUpdate.id);
-    } else {
-      sessionToUpdate = {
-        ...sessionToUpdate,
-        messages: [...sessionToUpdate.messages, userMessage],
-        updatedAt: Date.now(),
-      };
+      }, ...prev]);
     }
 
-    // Optimistic update
-    setSessions(prev => {
-      const index = prev.findIndex(s => s.id === sessionToUpdate!.id);
-      if (index >= 0) {
-        const newSessions = [...prev];
-        newSessions[index] = sessionToUpdate!;
-        return newSessions.sort((a, b) => b.updatedAt - a.updatedAt);
-      }
-      return [sessionToUpdate!, ...prev];
-    });
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    messagesCache.current[sessionId] = updatedMessages;
 
     setInput('');
     setIsLoading(true);
@@ -88,8 +110,8 @@ export function Chat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: input,
-          sessionId: sessionToUpdate.id,
-          history: sessionToUpdate.messages.slice(0, -1).map(m => ({
+          sessionId,
+          history: messages.map(m => ({
             role: m.role,
             text: m.text,
           })),
@@ -147,25 +169,23 @@ export function Chat() {
         sources: sources.length > 0 ? sources : undefined,
       };
 
-      const finalSession = {
-        ...sessionToUpdate,
-        messages: [...sessionToUpdate.messages, assistantMessage],
-        updatedAt: Date.now(),
-      };
-
-      setSessions(prev => {
-        const idx = prev.findIndex(s => s.id === finalSession.id);
-        if (idx >= 0) {
-          const updated = [...prev];
-          updated[idx] = finalSession;
-          return updated.sort((a, b) => b.updatedAt - a.updatedAt);
-        }
-        return [finalSession, ...prev];
-      });
+      const finalMessages = [...updatedMessages, assistantMessage];
+      setMessages(finalMessages);
+      messagesCache.current[sessionId] = finalMessages;
       setStreamingText('');
 
-      await saveChatSession(finalSession);
-      
+      setSessions(prev => {
+        const updated = prev.map(s => s.id === sessionId ? { ...s, updatedAt: Date.now() } : s);
+        return updated.sort((a, b) => b.updatedAt - a.updatedAt);
+      });
+
+      await saveChatSession({
+        id: sessionId,
+        title: sessionTitle!,
+        messages: finalMessages,
+        updatedAt: Date.now(),
+      });
+
     } catch (error) {
       console.error('Error generating response:', error);
       const errorMessage: ChatMessage = {
@@ -173,15 +193,17 @@ export function Chat() {
         role: 'assistant',
         text: 'Si è verificato un errore durante la generazione della risposta. Riprova.',
       };
-      
-      const errorSession = {
-        ...sessionToUpdate,
-        messages: [...sessionToUpdate.messages, errorMessage],
+
+      const errorMessages = [...updatedMessages, errorMessage];
+      setMessages(errorMessages);
+      messagesCache.current[sessionId] = errorMessages;
+
+      await saveChatSession({
+        id: sessionId,
+        title: sessionTitle!,
+        messages: errorMessages,
         updatedAt: Date.now(),
-      };
-      
-      await saveChatSession(errorSession);
-      await loadSessions();
+      });
     } finally {
       setIsLoading(false);
     }
@@ -196,17 +218,19 @@ export function Chat() {
 
   const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Using a custom modal or just deleting directly since window.confirm can be problematic in iframes
     await deleteChatSession(id);
+    setSessions(prev => prev.filter(s => s.id !== id));
+    delete messagesCache.current[id];
     if (currentSessionId === id) {
       setCurrentSessionId(null);
+      activeSessionRef.current = null;
+      setMessages([]);
     }
-    await loadSessions();
   };
 
   const handleSaveCitation = async (text: string) => {
     const category = prompt('Inserisci una categoria per questa citazione (es. "Introduzione", "Metodologia"):') || 'Generale';
-    
+
     await saveCitation({
       id: crypto.randomUUID(),
       text: text,
@@ -214,9 +238,11 @@ export function Chat() {
       category: category,
       createdAt: Date.now()
     });
-    
+
     alert('Citazione salvata con successo!');
   };
+
+  const currentTitle = sessions.find(s => s.id === currentSessionId)?.title;
 
   return (
     <div className="flex h-full bg-white">
@@ -235,7 +261,7 @@ export function Chat() {
           {sessions.map(session => (
             <div
               key={session.id}
-              onClick={() => setCurrentSessionId(session.id)}
+              onClick={() => selectSession(session.id)}
               className={cn(
                 "group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-colors",
                 currentSessionId === session.id
@@ -264,7 +290,7 @@ export function Chat() {
         <div className="h-16 border-b border-zinc-200 flex items-center justify-between px-6 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">
-              {currentSession ? currentSession.title : 'Nuova Conversazione'}
+              {currentTitle || 'Nuova Conversazione'}
             </h2>
             <p className="text-xs text-zinc-500">Chatta con i tuoi documenti</p>
           </div>
@@ -272,7 +298,7 @@ export function Chat() {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-zinc-50/50">
-          {!sessionsReady ? (
+          {!sessionsReady || messagesLoading ? (
             <div className="h-full flex items-center justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
             </div>
@@ -299,8 +325,8 @@ export function Chat() {
                   <div
                     className={cn(
                       "w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm",
-                      message.role === 'user' 
-                        ? "bg-indigo-600 text-white" 
+                      message.role === 'user'
+                        ? "bg-indigo-600 text-white"
                         : "bg-white border border-zinc-200 text-indigo-600"
                     )}
                   >

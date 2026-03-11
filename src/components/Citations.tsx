@@ -27,7 +27,7 @@ export function Citations() {
 
   const handleDelete = async (id: string) => {
     await deleteCitation(id);
-    await loadCitations();
+    setCitations(prev => prev.filter(c => c.id !== id));
   };
 
   const filteredCitations = selectedCategory === 'all'

@@ -5,7 +5,7 @@ export default createHandler({
   GET: () => withErrorHandler('list chat sessions', async () => {
     const { data, error } = await supabase
       .from('chat_sessions')
-      .select('id, title, messages, updated_at')
+      .select('id, title, updated_at')
       .order('updated_at', { ascending: false });
 
     if (error) throw error;

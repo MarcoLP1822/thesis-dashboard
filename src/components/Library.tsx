@@ -91,7 +91,7 @@ export function Library() {
 
   const handleDelete = async (id: string) => {
     await deleteFile(id);
-    await loadFiles();
+    setFiles(prev => prev.filter(f => f.id !== id));
   };
 
   const filteredFiles = files.filter(file => {

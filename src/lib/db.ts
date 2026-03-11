@@ -37,6 +37,12 @@ export interface ChatSession {
   updatedAt: number;
 }
 
+export interface ChatSessionMeta {
+  id: string;
+  title: string;
+  updatedAt: number;
+}
+
 // --- Shared fetch helpers ---
 
 async function apiGet<T>(url: string): Promise<T> {
@@ -132,14 +138,23 @@ export async function saveChatSession(session: ChatSession): Promise<void> {
   });
 }
 
-export async function getChatSessions(): Promise<ChatSession[]> {
+export async function getChatSessions(): Promise<ChatSessionMeta[]> {
   const data = await apiGet<Record<string, unknown>[]>('/api/chat/sessions');
   return data.map((s) => ({
     id: s.id as string,
     title: s.title as string,
-    messages: s.messages as ChatMessage[],
     updatedAt: new Date(s.updated_at as string).getTime(),
   }));
+}
+
+export async function getChatSessionById(id: string): Promise<ChatSession> {
+  const data = await apiGet<Record<string, unknown>>(`/api/chat/sessions/${id}`);
+  return {
+    id: data.id as string,
+    title: data.title as string,
+    messages: data.messages as ChatMessage[],
+    updatedAt: new Date(data.updated_at as string).getTime(),
+  };
 }
 
 export async function deleteChatSession(id: string): Promise<void> {

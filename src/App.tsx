@@ -18,10 +18,10 @@ export default function App() {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className="flex-1 h-full relative">
-        {activeTab === 'library' && <Library />}
-        {activeTab === 'chat' && <Chat />}
-        {activeTab === 'citations' && <Citations />}
-        {activeTab === 'settings' && <Settings />}
+        <div className={activeTab === 'library' ? 'h-full' : 'hidden'}><Library /></div>
+        <div className={activeTab === 'chat' ? 'h-full' : 'hidden'}><Chat /></div>
+        <div className={activeTab === 'citations' ? 'h-full' : 'hidden'}><Citations /></div>
+        <div className={activeTab === 'settings' ? 'h-full' : 'hidden'}><Settings /></div>
       </main>
     </div>
   );
