@@ -16,6 +16,11 @@ type Citation = {
   cited_text: string;
 };
 
+type Source = {
+  file: string;
+  page: number | null;
+};
+
 function buildDocumentBlocks(chunks: SearchResult[]): ContentBlockParam[] {
   return chunks.map((chunk) => ({
     type: 'document' as const,
@@ -117,8 +122,20 @@ export default createHandler({
         try {
           const finalMessage = await stream.finalMessage();
           const citations = extractCitations(finalMessage, searchResults);
+
+          // Deduplicate sources by file+page
+          const seen = new Set<string>();
+          const sources: Source[] = [];
+          for (const r of searchResults) {
+            const key = `${r.source_file}::${r.page_start}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              sources.push({ file: r.source_file, page: r.page_start });
+            }
+          }
+
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: 'done', citations })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify({ type: 'done', citations, sources })}\n\n`)
           );
         } catch (err) {
           console.error('Stream error:', err);

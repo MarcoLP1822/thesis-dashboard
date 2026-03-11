@@ -1,5 +1,5 @@
 import { supabase } from './_lib/supabase.js';
-import { chunkText } from './_lib/chunking.js';
+import { chunkTextWithPages } from './_lib/chunking.js';
 import { createHandler, withErrorHandler, parseBody } from './_lib/handler.js';
 
 export default createHandler({
@@ -30,13 +30,14 @@ export default createHandler({
 
     if (fileError) throw fileError;
 
-    const chunks = chunkText(content);
+    const chunks = chunkTextWithPages(content);
 
-    const rows = chunks.map((text, i) => ({
+    const rows = chunks.map((chunk, i) => ({
       id: `${id}_${i}`,
       file_id: id,
-      content: text,
+      content: chunk.text,
       chunk_index: i,
+      page_start: chunk.pageStart,
     }));
 
     // Batch-insert in groups of 500 to stay within Supabase payload limits

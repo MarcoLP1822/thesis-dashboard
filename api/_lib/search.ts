@@ -4,6 +4,7 @@ export type SearchResult = {
   content: string;
   source_file: string;
   rank: number;
+  page_start: number | null;
 };
 
 export async function searchChunks(query: string, limit: number = 5): Promise<SearchResult[]> {

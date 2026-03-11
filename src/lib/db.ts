@@ -18,10 +18,16 @@ export interface Citation {
   createdAt: number;
 }
 
+export interface ChatSource {
+  file: string;
+  page: number | null;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  sources?: ChatSource[];
 }
 
 export interface ChatSession {

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Bot, User, Trash2, Plus, MessageSquare, Save } from 'lucide-react';
+import { Send, Loader2, Bot, User, Trash2, Plus, MessageSquare, Save, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { saveChatSession, getChatSessions, deleteChatSession, ChatSession, ChatMessage, saveCitation } from '../lib/db';
+import { saveChatSession, getChatSessions, deleteChatSession, ChatSession, ChatMessage, ChatSource, saveCitation } from '../lib/db';
 import { cn } from '../lib/utils';
 
 export function Chat() {
@@ -102,6 +102,7 @@ export function Chat() {
       const decoder = new TextDecoder();
       let fullText = '';
       let buffer = '';
+      let sources: ChatSource[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -119,8 +120,23 @@ export function Chat() {
             if (data.type === 'delta') {
               fullText += data.text;
               setStreamingText(fullText);
+            } else if (data.type === 'done' && data.sources) {
+              sources = data.sources;
             }
           } catch { /* ignore malformed chunks */ }
+        }
+      }
+
+      // Flush remaining buffer — the 'done' event may not end with \n\n
+      if (buffer.trim()) {
+        const line = buffer.trim();
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'done' && data.sources) {
+              sources = data.sources;
+            }
+          } catch { /* ignore */ }
         }
       }
 
@@ -128,6 +144,7 @@ export function Chat() {
         id: crypto.randomUUID(),
         role: 'assistant',
         text: fullText || 'Nessuna risposta generata.',
+        sources: sources.length > 0 ? sources : undefined,
       };
 
       const finalSession = {
@@ -306,6 +323,25 @@ export function Chat() {
                         </div>
                       )}
                     </div>
+                    {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                      <div className="bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3">
+                        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Fonti</p>
+                        <div className="flex flex-wrap gap-2">
+                          {message.sources.map((src, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1.5 text-xs bg-white border border-zinc-200 text-zinc-700 px-2.5 py-1.5 rounded-lg"
+                            >
+                              <FileText className="w-3 h-3 text-indigo-500 shrink-0" />
+                              <span className="truncate max-w-[200px]" title={src.file}>{src.file}</span>
+                              {src.page != null && (
+                                <span className="text-indigo-600 font-medium">p. {src.page}</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {message.role === 'assistant' && (
                       <div className="flex justify-start">
                         <button
