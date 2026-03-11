@@ -32,17 +32,18 @@ export default createHandler({
 
     const chunks = chunkText(content);
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunkId = `${id}_${i}`;
+    const rows = chunks.map((text, i) => ({
+      id: `${id}_${i}`,
+      file_id: id,
+      content: text,
+      chunk_index: i,
+    }));
 
+    // Batch-insert in groups of 500 to stay within Supabase payload limits
+    for (let i = 0; i < rows.length; i += 500) {
       const { error: chunkError } = await supabase
         .from('chunks')
-        .insert({
-          id: chunkId,
-          file_id: id,
-          content: chunks[i],
-          chunk_index: i,
-        });
+        .insert(rows.slice(i, i + 500));
 
       if (chunkError) throw chunkError;
     }
