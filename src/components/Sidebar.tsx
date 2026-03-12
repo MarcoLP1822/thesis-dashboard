@@ -19,7 +19,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     <div className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full text-zinc-300">
       <div className="p-6">
         <h1 className="text-2xl font-bold text-white tracking-tight">Dotto</h1>
-        <img src={dottoImg} alt="Dotto" className="w-10 h-10 rounded-full mt-1" />
+        <img src={dottoImg} alt="Dotto" className="w-15 h-15 rounded-full mt-1" />
       </div>
 
       <nav className="flex-1 px-4 space-y-1">
