@@ -1,5 +1,6 @@
 import { BookOpen, MessageSquare, Settings, Quote } from 'lucide-react';
 import { cn } from '../lib/utils';
+import dottoImg from '../assets/dotto.png';
 
 interface SidebarProps {
   activeTab: string;
@@ -18,7 +19,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     <div className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full text-zinc-300">
       <div className="p-6">
         <h1 className="text-2xl font-bold text-white tracking-tight">Dotto</h1>
-        <p className="text-xs text-zinc-500 mt-1">❤️🍕🐱</p>
+        <img src={dottoImg} alt="Dotto" className="w-10 h-10 rounded-full mt-1" />
       </div>
 
       <nav className="flex-1 px-4 space-y-1">
